@@ -24,6 +24,7 @@ Registo criado no inquilino Monte do Pasto:
 - Client ID: `6e4f69e0-d8f5-49d6-99f8-47d4801e2354`
 - Tenant ID: `ee417351-ea90-41e0-9147-5ea6ab38ea49`
 - SPA redirect local: `http://localhost:5173`
+- Microsoft Graph: `User.Read` e `Sites.Selected` (acesso limitado ao site da aplicação)
 
 ## Regras de auditoria
 

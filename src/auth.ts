@@ -22,5 +22,5 @@ const configuration: Configuration = {
 export const msalInstance = new PublicClientApplication(configuration)
 
 export const loginRequest = {
-  scopes: ['User.Read'],
+  scopes: ['User.Read', 'Sites.Selected'],
 }

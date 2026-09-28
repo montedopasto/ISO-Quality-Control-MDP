@@ -6,7 +6,7 @@ const graphRoot = 'https://graph.microsoft.com/v1.0'
 async function accessToken(instance: IPublicClientApplication, account: AccountInfo) {
   const result = await instance.acquireTokenSilent({
     account,
-    scopes: ['User.Read', 'Sites.ReadWrite.All'],
+    scopes: ['User.Read', 'Sites.Selected'],
   })
   return result.accessToken
 }
