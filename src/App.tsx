@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useIsAuthenticated, useMsal } from '@azure/msal-react'
 import {
   AlertTriangle,
   Bell,
@@ -14,8 +15,11 @@ import {
   Settings,
   ShieldCheck,
   Users,
+  LogIn,
+  LogOut,
 } from 'lucide-react'
 import { demoAlerts, demoDocuments } from './data/demo'
+import { authConfigured, loginRequest } from './auth'
 
 const navigation = [
   { label: 'Visão geral', icon: LayoutDashboard },
@@ -35,6 +39,17 @@ const statusClass: Record<string, string> = {
 export function App() {
   const [active, setActive] = useState('Visão geral')
   const [query, setQuery] = useState('')
+  const { instance, accounts } = useMsal()
+  const authenticated = useIsAuthenticated()
+  const currentUser = accounts[0]
+
+  async function toggleSession() {
+    if (authenticated) {
+      await instance.logoutRedirect({ account: currentUser })
+      return
+    }
+    await instance.loginRedirect(loginRequest)
+  }
 
   const documents = useMemo(
     () => demoDocuments.filter((doc) => `${doc.code} ${doc.title} ${doc.owner}`.toLowerCase().includes(query.toLowerCase())),
@@ -64,7 +79,14 @@ export function App() {
       <main>
         <header className="topbar">
           <div><p>Sistema de Gestão da Qualidade</p><h1>{active}</h1></div>
-          <div className="topbar__actions"><button className="icon-button" aria-label="Alertas"><Bell size={20} /><i /></button><button className="primary"><FilePlus2 size={18} /> Novo documento</button></div>
+          <div className="topbar__actions">
+            <button className="session-button" onClick={toggleSession} disabled={!authConfigured}>
+              {authenticated ? <LogOut size={17} /> : <LogIn size={17} />}
+              {authenticated ? currentUser?.name || 'Terminar sessão' : 'Entrar com Microsoft'}
+            </button>
+            <button className="icon-button" aria-label="Alertas"><Bell size={20} /><i /></button>
+            <button className="primary"><FilePlus2 size={18} /> Novo documento</button>
+          </div>
         </header>
 
         <section className="content">
