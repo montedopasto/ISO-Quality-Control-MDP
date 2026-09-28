@@ -1,126 +1,29 @@
-import { useMemo, useState } from 'react'
+import { FormEvent, type ReactNode, useMemo, useState } from 'react'
 import { useIsAuthenticated, useMsal } from '@azure/msal-react'
-import {
-  AlertTriangle,
-  Bell,
-  BookOpenCheck,
-  CheckCircle2,
-  ChevronRight,
-  Clock3,
-  FileCheck2,
-  FilePlus2,
-  Files,
-  LayoutDashboard,
-  Search,
-  Settings,
-  ShieldCheck,
-  Users,
-  LogIn,
-  LogOut,
-} from 'lucide-react'
+import { AlertTriangle, Bell, BookOpenCheck, CheckCircle2, ChevronRight, Clock3, FileCheck2, FilePlus2, Files, LayoutDashboard, Search, Settings, ShieldCheck, Users, LogIn, LogOut, X, Eye, Check } from 'lucide-react'
 import { demoAlerts, demoDocuments } from './data/demo'
 import { authConfigured, loginRequest } from './auth'
+import type { IsoDocument } from './types'
 
-const navigation = [
-  { label: 'Visão geral', icon: LayoutDashboard },
-  { label: 'Documentos', icon: Files },
-  { label: 'Aprovações', icon: FileCheck2 },
-  { label: 'Revisões', icon: BookOpenCheck },
-  { label: 'Alertas', icon: Bell, badge: 2 },
-  { label: 'Utilizadores', icon: Users },
-]
+const nav = [{label:'Visão geral',icon:LayoutDashboard},{label:'Documentos',icon:Files},{label:'Aprovações',icon:FileCheck2},{label:'Revisões',icon:BookOpenCheck},{label:'Alertas',icon:Bell},{label:'Utilizadores',icon:Users}]
+const statusClass:Record<string,string>={'Em vigor':'status status--green','Aguarda aprovação':'status status--amber','Em revisão':'status status--blue','Aprovado':'status status--green'}
 
-const statusClass: Record<string, string> = {
-  'Em vigor': 'status status--green',
-  'Aguarda aprovação': 'status status--amber',
-  'Em revisão': 'status status--blue',
-}
-
-export function App() {
-  const [active, setActive] = useState('Visão geral')
-  const [query, setQuery] = useState('')
-  const { instance, accounts } = useMsal()
-  const authenticated = useIsAuthenticated()
-  const currentUser = accounts[0]
-
-  async function toggleSession() {
-    if (authenticated) {
-      await instance.logoutRedirect({ account: currentUser })
-      return
-    }
-    await instance.loginRedirect(loginRequest)
-  }
-
-  const documents = useMemo(
-    () => demoDocuments.filter((doc) => `${doc.code} ${doc.title} ${doc.owner}`.toLowerCase().includes(query.toLowerCase())),
-    [query],
-  )
-
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand__mark">ISO</div>
-          <div><strong>Quality Control</strong><span>Monte do Pasto</span></div>
-        </div>
-        <nav>
-          {navigation.map(({ label, icon: Icon, badge }) => (
-            <button key={label} className={active === label ? 'nav-item nav-item--active' : 'nav-item'} onClick={() => setActive(label)}>
-              <Icon size={19} /><span>{label}</span>{badge && <b>{badge}</b>}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar__footer">
-          <button className="nav-item"><Settings size={19} /><span>Configurações</span></button>
-          <div className="profile"><div className="avatar">JA</div><div><strong>José Almanso</strong><span>Administrador</span></div></div>
-        </div>
-      </aside>
-
-      <main>
-        <header className="topbar">
-          <div><p>Sistema de Gestão da Qualidade</p><h1>{active}</h1></div>
-          <div className="topbar__actions">
-            <button className="session-button" onClick={toggleSession} disabled={!authConfigured}>
-              {authenticated ? <LogOut size={17} /> : <LogIn size={17} />}
-              {authenticated ? currentUser?.name || 'Terminar sessão' : 'Entrar com Microsoft'}
-            </button>
-            <button className="icon-button" aria-label="Alertas"><Bell size={20} /><i /></button>
-            <button className="primary"><FilePlus2 size={18} /> Novo documento</button>
-          </div>
-        </header>
-
-        <section className="content">
-          <div className="hero">
-            <div><span className="eyebrow"><ShieldCheck size={15} /> ISO 9001</span><h2>Bom trabalho, José.</h2><p>Acompanhe o ciclo documental e as ações que precisam da sua atenção.</p></div>
-            <div className="quality-score"><span>Conformidade documental</span><strong>94%</strong><div><i style={{ width: '94%' }} /></div></div>
-          </div>
-
-          <div className="metrics">
-            <article><span className="metric-icon metric-icon--green"><Files /></span><div><small>Documentos ativos</small><strong>48</strong><em>+3 este mês</em></div></article>
-            <article><span className="metric-icon metric-icon--amber"><Clock3 /></span><div><small>Aguardam aprovação</small><strong>6</strong><em>2 urgentes</em></div></article>
-            <article><span className="metric-icon metric-icon--blue"><BookOpenCheck /></span><div><small>Em revisão</small><strong>4</strong><em>Dentro do prazo</em></div></article>
-            <article><span className="metric-icon metric-icon--red"><AlertTriangle /></span><div><small>Revisões próximas</small><strong>3</strong><em>Próximos 30 dias</em></div></article>
-          </div>
-
-          <div className="grid-layout">
-            <section className="panel panel--documents">
-              <div className="panel__header"><div><h3>Documentos recentes</h3><p>Estado atual do controlo documental</p></div><button>Ver todos <ChevronRight size={16} /></button></div>
-              <label className="search"><Search size={18} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Pesquisar por código, título ou responsável" /></label>
-              <div className="table-wrap"><table><thead><tr><th>Documento</th><th>Processo</th><th>Versão</th><th>Estado</th><th>Próxima revisão</th></tr></thead><tbody>
-                {documents.map((doc) => <tr key={doc.id}><td><strong>{doc.code}</strong><span>{doc.title}</span></td><td>{doc.process}</td><td>v{doc.version}</td><td><span className={statusClass[doc.status] || 'status'}>{doc.status}</span></td><td>{doc.nextReview ? new Intl.DateTimeFormat('pt-PT').format(new Date(doc.nextReview)) : '—'}</td></tr>)}
-              </tbody></table></div>
-            </section>
-
-            <aside className="panel attention">
-              <div className="panel__header"><div><h3>Precisa de atenção</h3><p>Prioridades do momento</p></div></div>
-              <div className="attention__list">
-                {demoAlerts.map((alert) => <button key={alert.id}><span className={alert.level === 'Urgente' ? 'alert-icon alert-icon--red' : 'alert-icon'}><AlertTriangle size={18} /></span><div><strong>{alert.documentCode}</strong><p>{alert.message}</p><small>{alert.deadline ? `Até ${new Intl.DateTimeFormat('pt-PT').format(new Date(alert.deadline))}` : ''}</small></div><ChevronRight size={17} /></button>)}
-              </div>
-              <button className="secondary"><CheckCircle2 size={17} /> Abrir centro de tarefas</button>
-            </aside>
-          </div>
-        </section>
-      </main>
-    </div>
-  )
+export function App(){
+ const [active,setActive]=useState('Visão geral'),[query,setQuery]=useState(''),[documents,setDocuments]=useState<IsoDocument[]>(demoDocuments),[selected,setSelected]=useState<IsoDocument|null>(null),[creating,setCreating]=useState(false),[toast,setToast]=useState('')
+ const {instance,accounts}=useMsal(),authenticated=useIsAuthenticated(),user=accounts[0]
+ const filtered=useMemo(()=>documents.filter(d=>`${d.code} ${d.title} ${d.owner} ${d.process} ${d.status}`.toLowerCase().includes(query.toLowerCase())),[documents,query])
+ const go=(page:string)=>{setActive(page);setQuery('')}
+ const notify=(text:string)=>{setToast(text);window.setTimeout(()=>setToast(''),2500)}
+ async function session(){if(authenticated)return instance.logoutRedirect({account:user});await instance.loginRedirect(loginRequest)}
+ function create(e:FormEvent<HTMLFormElement>){e.preventDefault();const f=new FormData(e.currentTarget),d:IsoDocument={id:`DOC-${documents.length+1}`,code:String(f.get('code')),title:String(f.get('title')),type:String(f.get('type')),process:String(f.get('process')),owner:user?.name||'José Almanso',version:'01',status:'Rascunho',nextReview:String(f.get('date'))||undefined};setDocuments(x=>[d,...x]);setCreating(false);go('Documentos');notify(`${d.code} criado como rascunho.`)}
+ function change(d:IsoDocument,status:IsoDocument['status']){setDocuments(x=>x.map(i=>i.id===d.id?{...i,status}:i));setSelected(null);notify(`${d.code}: ${status}.`)}
+ const SearchBox=()=> <label className="search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Pesquisar por código, título, processo ou responsável"/></label>
+ const Table=({items=filtered}:{items?:IsoDocument[]})=><div className="table-wrap"><table><thead><tr><th>Documento</th><th>Processo</th><th>Versão</th><th>Estado</th><th>Próxima revisão</th><th/></tr></thead><tbody>{items.map(d=><tr key={d.id} className="clickable" onClick={()=>setSelected(d)}><td><strong>{d.code}</strong><span>{d.title}</span></td><td>{d.process}</td><td>v{d.version}</td><td><span className={statusClass[d.status]||'status'}>{d.status}</span></td><td>{d.nextReview?new Intl.DateTimeFormat('pt-PT').format(new Date(d.nextReview)):'—'}</td><td><Eye size={16}/></td></tr>)}{!items.length&&<tr><td colSpan={6} className="empty">Nenhum documento encontrado.</td></tr>}</tbody></table></div>
+ const Alerts=()=> <div className="attention__list">{demoAlerts.map(a=><button key={a.id} onClick={()=>setSelected(documents.find(d=>d.code===a.documentCode)||null)}><span className={a.level==='Urgente'?'alert-icon alert-icon--red':'alert-icon'}><AlertTriangle size={18}/></span><div><strong>{a.documentCode}</strong><p>{a.message}</p><small>{a.deadline?`Até ${new Intl.DateTimeFormat('pt-PT').format(new Date(a.deadline))}`:''}</small></div><ChevronRight size={17}/></button>)}</div>
+ function Dashboard(){return <><div className="hero"><div><span className="eyebrow"><ShieldCheck size={15}/> ISO 9001</span><h2>Bom trabalho, {user?.name?.split(' ')[0]||'José'}.</h2><p>Acompanhe o ciclo documental e as ações que precisam da sua atenção.</p></div><div className="quality-score"><span>Conformidade documental</span><strong>94%</strong><div><i style={{width:'94%'}}/></div></div></div><div className="metrics"><article onClick={()=>go('Documentos')}><span className="metric-icon metric-icon--green"><Files/></span><div><small>Documentos ativos</small><strong>{documents.filter(d=>d.status==='Em vigor').length}</strong><em>Abrir documentos</em></div></article><article onClick={()=>go('Aprovações')}><span className="metric-icon metric-icon--amber"><Clock3/></span><div><small>Aguardam aprovação</small><strong>{documents.filter(d=>d.status==='Aguarda aprovação').length}</strong><em>Ver decisões</em></div></article><article onClick={()=>go('Revisões')}><span className="metric-icon metric-icon--blue"><BookOpenCheck/></span><div><small>Em revisão</small><strong>{documents.filter(d=>d.status==='Em revisão').length}</strong><em>Abrir revisões</em></div></article><article onClick={()=>go('Alertas')}><span className="metric-icon metric-icon--red"><AlertTriangle/></span><div><small>Alertas ativos</small><strong>{demoAlerts.length}</strong><em>Requerem atenção</em></div></article></div><div className="grid-layout"><section className="panel panel--documents"><div className="panel__header"><div><h3>Documentos recentes</h3><p>Estado atual do controlo documental</p></div><button onClick={()=>go('Documentos')}>Ver todos <ChevronRight size={16}/></button></div><SearchBox/><Table items={documents.slice(0,5)}/></section><aside className="panel attention"><div className="panel__header"><div><h3>Precisa de atenção</h3><p>Prioridades do momento</p></div></div><Alerts/><button className="secondary" onClick={()=>go('Alertas')}><CheckCircle2 size={17}/> Abrir centro de tarefas</button></aside></div></>}
+ function Page(){if(active==='Visão geral')return <Dashboard/>;if(active==='Documentos')return <Panel title="Todos os documentos" subtitle={`${filtered.length} registos`}><SearchBox/><Table/></Panel>;if(active==='Aprovações')return <Panel title="Fila de aprovação" subtitle="Documentos à espera de decisão"><Table items={documents.filter(d=>d.status==='Aguarda aprovação')}/></Panel>;if(active==='Revisões')return <Panel title="Plano de revisões" subtitle="Revisões em curso e próximas datas"><Table items={documents.filter(d=>d.status==='Em revisão'||d.nextReview)}/></Panel>;if(active==='Alertas')return <Panel title="Centro de alertas" subtitle={`${demoAlerts.length} ações pendentes`}><Alerts/></Panel>;if(active==='Utilizadores')return <Panel title="Utilizadores e funções" subtitle="Perfis com acesso ao sistema"><div className="user-card"><div className="avatar">JA</div><div><strong>{user?.name||'José Almanso'}</strong><span>{user?.username||'Administrador da aplicação'}</span></div><b>Administrador</b></div></Panel>;return <Panel title="Configurações" subtitle="Ligação e parâmetros da aplicação"><div className="setting-row"><div><strong>Microsoft 365</strong><span>{authenticated?`Ligado como ${user?.username}`:'Sessão ainda não iniciada'}</span></div><button className="secondary compact" onClick={session}>{authenticated?'Terminar sessão':'Ligar conta'}</button></div><div className="setting-row"><div><strong>SharePoint</strong><span>ISO Quality Control MDP</span></div><b className={authenticated?'online':''}>{authenticated?'Ligado':'A aguardar login'}</b></div></Panel>}
+ function Panel({title,subtitle,children}:{title:string,subtitle:string,children:ReactNode}){return <section className="panel page-panel"><div className="panel__header"><div><h3>{title}</h3><p>{subtitle}</p></div></div>{children}</section>}
+ return <div className="app-shell"><aside className="sidebar"><div className="brand"><div className="brand__mark">ISO</div><div><strong>Quality Control</strong><span>Monte do Pasto</span></div></div><nav>{nav.map(({label,icon:Icon})=><button key={label} className={active===label?'nav-item nav-item--active':'nav-item'} onClick={()=>go(label)}><Icon size={19}/><span>{label}</span>{label==='Alertas'&&<b>{demoAlerts.length}</b>}</button>)}</nav><div className="sidebar__footer"><button className={active==='Configurações'?'nav-item nav-item--active':'nav-item'} onClick={()=>go('Configurações')}><Settings size={19}/><span>Configurações</span></button><div className="profile"><div className="avatar">JA</div><div><strong>{user?.name||'José Almanso'}</strong><span>{authenticated?'Sessão Microsoft ativa':'Administrador'}</span></div></div></div></aside><main><header className="topbar"><div><p>Sistema de Gestão da Qualidade</p><h1>{active}</h1></div><div className="topbar__actions"><button className="session-button" onClick={session} disabled={!authConfigured}>{authenticated?<LogOut size={17}/>:<LogIn size={17}/>} {authenticated?'Terminar sessão':'Entrar com Microsoft'}</button><button className="icon-button" aria-label="Alertas" onClick={()=>go('Alertas')}><Bell size={20}/><i/></button><button className="primary" onClick={()=>setCreating(true)}><FilePlus2 size={18}/> Novo documento</button></div></header><section className="content"><Page/></section></main>
+ {creating&&<div className="modal-backdrop" onMouseDown={()=>setCreating(false)}><form className="modal" onSubmit={create} onMouseDown={e=>e.stopPropagation()}><button type="button" className="modal-close" onClick={()=>setCreating(false)}><X/></button><h2>Novo documento</h2><p>Crie o registo base. O documento fica em rascunho.</p><label>Código<input name="code" placeholder="PR-002" required/></label><label>Título<input name="title" placeholder="Título do documento" required/></label><div className="form-grid"><label>Tipo<select name="type"><option>Procedimento</option><option>Instrução</option><option>Formulário</option></select></label><label>Processo<input name="process" placeholder="Gestão da Qualidade" required/></label></div><label>Próxima revisão<input name="date" type="date"/></label><div className="modal-actions"><button type="button" className="secondary compact" onClick={()=>setCreating(false)}>Cancelar</button><button className="primary">Criar rascunho</button></div></form></div>}
+ {selected&&<div className="modal-backdrop" onMouseDown={()=>setSelected(null)}><div className="modal" onMouseDown={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setSelected(null)}><X/></button><span className={statusClass[selected.status]||'status'}>{selected.status}</span><h2>{selected.code}</h2><p className="document-title">{selected.title}</p><dl><div><dt>Processo</dt><dd>{selected.process}</dd></div><div><dt>Responsável</dt><dd>{selected.owner}</dd></div><div><dt>Versão</dt><dd>{selected.version}</dd></div><div><dt>Tipo</dt><dd>{selected.type}</dd></div></dl><div className="modal-actions">{selected.status==='Aguarda aprovação'&&<><button className="danger-button" onClick={()=>change(selected,'Rejeitado')}>Rejeitar</button><button className="primary" onClick={()=>change(selected,'Aprovado')}><Check size={16}/> Aprovar</button></>}{selected.status==='Em revisão'&&<button className="primary" onClick={()=>change(selected,'Aguarda aprovação')}>Submeter para aprovação</button>}<button className="secondary compact" onClick={()=>setSelected(null)}>Fechar</button></div></div></div>}{toast&&<div className="toast"><CheckCircle2 size={18}/>{toast}</div>}</div>
 }
