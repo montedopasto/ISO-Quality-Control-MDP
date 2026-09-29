@@ -18,6 +18,8 @@ export interface IsoDocument {
   version: string
   status: DocumentStatus
   nextReview?: string
+  sourceUrl?: string
+  modifiedAt?: string
 }
 
 export interface IsoAlert {
