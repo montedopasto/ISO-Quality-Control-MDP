@@ -46,7 +46,11 @@ function documentCode(name: string) {
 
 function documentType(name: string) {
   const extension = name.split('.').pop()?.toUpperCase() || 'FICHEIRO'
-  return extension === 'DOCX' ? 'Word' : extension === 'XLSX' || extension === 'XLS' ? 'Excel' : extension === 'PDF' ? 'PDF' : extension
+  return extension === 'DOCX' || extension === 'DOC' ? 'Word'
+    : extension === 'XLSX' || extension === 'XLS' ? 'Excel'
+      : extension === 'PPTX' || extension === 'PPT' ? 'PowerPoint'
+        : extension === 'PDF' ? 'PDF'
+          : extension
 }
 
 async function folderFiles(instance: IPublicClientApplication, account: AccountInfo, driveId: string, itemId: string, process: string): Promise<IsoDocument[]> {
