@@ -59,13 +59,13 @@ function documentVersion(name: string) {
 }
 
 function isObsolete(name: string) {
-  return /\b(?:obsoleto|obsoleta|obsoleto|obsolo|obs)\b/i.test(name)
+  return /obsolet[oa]?|obsolo|(?:^|[\s_.-])obs(?:$|[\s_.-])/i.test(name)
 }
 
 function documentFamily(document: IsoDocument) {
   return `${document.process}::${document.type}::${document.title}`
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/\b(?:obsoleto|obsoleta|obsoleto|obsolo|obs)\b/gi, ' ')
+    .replace(/obsolet[oa]?|obsolo|(?:^|[\s_.-])obs(?:$|[\s_.-])/gi, ' ')
     .replace(/(?:^|[\s_.-])(?:ed(?:icao)?|rev(?:isao)?|v(?:ersao)?)[\s_.-]*\d+(?:[.,]\d+)?/gi, ' ')
     .replace(/[\s_.-]+/g, ' ')
     .trim().toLowerCase()
