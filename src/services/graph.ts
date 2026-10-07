@@ -53,6 +53,46 @@ function documentType(name: string) {
           : extension
 }
 
+function documentVersion(name: string) {
+  const matches = [...name.matchAll(/(?:^|[\s_.-])(?:ed(?:i[cç][aã]o)?|rev(?:is[aã]o)?|v(?:ers[aã]o)?)[\s_.-]*(\d+(?:[.,]\d+)?)/gi)]
+  return matches[matches.length - 1]?.[1]?.replace(',', '.') || '—'
+}
+
+function isObsolete(name: string) {
+  return /\b(?:obsoleto|obsoleta|obsoleto|obsolo|obs)\b/i.test(name)
+}
+
+function documentFamily(document: IsoDocument) {
+  return `${document.process}::${document.type}::${document.title}`
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(?:obsoleto|obsoleta|obsoleto|obsolo|obs)\b/gi, ' ')
+    .replace(/(?:^|[\s_.-])(?:ed(?:icao)?|rev(?:isao)?|v(?:ersao)?)[\s_.-]*\d+(?:[.,]\d+)?/gi, ' ')
+    .replace(/[\s_.-]+/g, ' ')
+    .trim().toLowerCase()
+}
+
+function versionValue(version: string) {
+  const value = Number.parseFloat(version)
+  return Number.isFinite(value) ? value : -1
+}
+
+function consolidateVersions(documents: IsoDocument[]) {
+  const families = new Map<string, IsoDocument[]>()
+  for (const document of documents) {
+    const key = documentFamily(document)
+    families.set(key, [...(families.get(key) || []), document])
+  }
+  return [...families.values()].map(versions => {
+    const sorted = [...versions].sort((a,b) => {
+      if (a.status !== b.status) return a.status === 'Obsoleto' ? 1 : -1
+      return versionValue(b.version) - versionValue(a.version)
+        || new Date(b.modifiedAt || 0).getTime() - new Date(a.modifiedAt || 0).getTime()
+    })
+    const [current, ...previousVersions] = sorted
+    return previousVersions.length ? {...current, previousVersions} : current
+  })
+}
+
 async function folderFiles(instance: IPublicClientApplication, account: AccountInfo, driveId: string, itemId: string, process: string): Promise<IsoDocument[]> {
   const result = await graphFetch<{ value: DriveItem[] }>(instance, account, `/drives/${driveId}/items/${itemId}/children?$top=999`)
   const documents: IsoDocument[] = []
@@ -67,8 +107,8 @@ async function folderFiles(instance: IPublicClientApplication, account: AccountI
         type: documentType(item.name),
         process: process || 'Documentos gerais',
         owner: item.lastModifiedBy?.user?.displayName || 'SharePoint',
-        version: '—',
-        status: 'Em vigor',
+        version: documentVersion(item.name),
+        status: isObsolete(item.name) ? 'Obsoleto' : 'Em vigor',
         sourceUrl: item.webUrl,
         modifiedAt: item.lastModifiedDateTime,
       })
@@ -84,5 +124,5 @@ export async function loadExistingDocuments(instance: IPublicClientApplication, 
     || drives.value.find(item => item.name.toLowerCase().includes('documentos partilhados'))
   if (!drive) throw new Error('Biblioteca Documentos Partilhados não encontrada.')
   const folder = await graphFetch<DriveItem>(instance, account, `/drives/${drive.id}/root:/${encodeURI(sharePointConfig.source.folderPath)}`)
-  return folderFiles(instance, account, drive.id, folder.id, '')
+  return consolidateVersions(await folderFiles(instance, account, drive.id, folder.id, ''))
 }

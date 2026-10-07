@@ -20,6 +20,7 @@ export interface IsoDocument {
   nextReview?: string
   sourceUrl?: string
   modifiedAt?: string
+  previousVersions?: IsoDocument[]
 }
 
 export interface IsoAlert {
