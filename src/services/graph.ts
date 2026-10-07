@@ -12,12 +12,14 @@ async function accessToken(instance: IPublicClientApplication, account: AccountI
   return result.accessToken
 }
 
-async function graphFetch<T>(instance: IPublicClientApplication, account: AccountInfo, path: string): Promise<T> {
+async function graphFetch<T>(instance: IPublicClientApplication, account: AccountInfo, path: string, init?: RequestInit): Promise<T> {
   const token = await accessToken(instance, account)
   const response = await fetch(`${graphRoot}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    ...init,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...init?.headers },
   })
   if (!response.ok) throw new Error(`Microsoft Graph: ${response.status}`)
+  if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
 
@@ -124,5 +126,63 @@ export async function loadExistingDocuments(instance: IPublicClientApplication, 
     || drives.value.find(item => item.name.toLowerCase().includes('documentos partilhados'))
   if (!drive) throw new Error('Biblioteca Documentos Partilhados não encontrada.')
   const folder = await graphFetch<DriveItem>(instance, account, `/drives/${drive.id}/root:/${encodeURI(sharePointConfig.source.folderPath)}`)
-  return consolidateVersions(await folderFiles(instance, account, drive.id, folder.id, ''))
+  const documents = consolidateVersions(await folderFiles(instance, account, drive.id, folder.id, ''))
+  try {
+    const metadataSite = await resolveSite(instance, account)
+    const list = await resolveList(instance, account, metadataSite.id, sharePointConfig.lists.documents)
+    const items = await graphFetch<{ value: Array<{ id: string; fields: Record<string, string | boolean | undefined> }> }>(
+      instance, account, `/sites/${metadataSite.id}/lists/${list.id}/items?$expand=fields&$top=999`,
+    )
+    const byFile = new Map(items.value.map(item => [String(item.fields.FileIDAtual || ''), item]))
+    return documents.map(document => {
+      const item = byFile.get(document.id)
+      if (!item) return document
+      const fields = item.fields
+      return {
+        ...document,
+        metadataItemId: item.id,
+        status: (fields.EstadoAtual as IsoDocument['status']) || document.status,
+        nextReview: typeof fields.DataProximaRevisao === 'string' ? fields.DataProximaRevisao : undefined,
+        reviewPeriod: typeof fields.PeriodicidadeRevisao === 'string' ? fields.PeriodicidadeRevisao : undefined,
+      }
+    })
+  } catch {
+    return documents
+  }
+}
+
+async function resolveList(instance: IPublicClientApplication, account: AccountInfo, siteId: string, displayName: string) {
+  const lists = await graphFetch<{ value: Array<{ id: string; displayName: string }> }>(instance, account, `/sites/${siteId}/lists?$select=id,displayName`)
+  const list = lists.value.find(candidate => candidate.displayName === displayName)
+  if (!list) throw new Error(`Lista ${displayName} não encontrada.`)
+  return list
+}
+
+export async function saveDocumentMetadata(instance: IPublicClientApplication, account: AccountInfo, document: IsoDocument) {
+  const site = await resolveSite(instance, account)
+  const list = await resolveList(instance, account, site.id, sharePointConfig.lists.documents)
+  const fields = {
+    Title: document.code,
+    DocumentoID: document.id,
+    Codigo: document.code,
+    Titulo: document.title,
+    VersaoAtual: document.version,
+    EstadoAtual: document.status,
+    DataProximaRevisao: document.nextReview || null,
+    PeriodicidadeRevisao: document.reviewPeriod || null,
+    FileIDAtual: document.id,
+    Ativo: document.status !== 'Obsoleto' && document.status !== 'Cancelado',
+    UltimaAlteracaoPor: account.name || account.username,
+    UltimaAlteracaoEm: new Date().toISOString(),
+  }
+  if (document.metadataItemId) {
+    await graphFetch(instance, account, `/sites/${site.id}/lists/${list.id}/items/${document.metadataItemId}/fields`, {
+      method: 'PATCH', body: JSON.stringify(fields),
+    })
+    return document.metadataItemId
+  }
+  const created = await graphFetch<{ id: string }>(instance, account, `/sites/${site.id}/lists/${list.id}/items`, {
+    method: 'POST', body: JSON.stringify({ fields }),
+  })
+  return created.id
 }

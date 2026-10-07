@@ -18,6 +18,8 @@ export interface IsoDocument {
   version: string
   status: DocumentStatus
   nextReview?: string
+  reviewPeriod?: string
+  metadataItemId?: string
   sourceUrl?: string
   modifiedAt?: string
   previousVersions?: IsoDocument[]
